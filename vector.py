@@ -5,6 +5,9 @@ import struct
 import reprlib
 import secrets
 import re
+import random
+
+from byte_conversion import unpack_bytes
 
 
 class Vector:
@@ -17,9 +20,12 @@ class Vector:
     def __repr__(self):
         return f"{self.__class__.__name__}{reprlib.repr(self._components)}"
 
+    def __str__(self):
+        return str(self._components)
+
     def __bytes__(self):
-        s = struct.Struct(f"{len(self)}I")
-        return b"%i" % len(self) + b"::" + s.pack(*self)
+        b = struct.pack(f"!{len(self)}Q", *self._components)
+        return b
 
     def __abs__(self):
         return math.hypot(*self)
@@ -59,15 +65,15 @@ class Vector:
         return self
 
     @classmethod
-    def from_bytes(cls, b: bytes):
-        size, vector_bytes = re.search(rb"(?s)(\d+)::(.*)", b).groups()
-        vector = struct.unpack(f"{int(size)}I", vector_bytes)
-
-        return cls(*vector)
+    def from_bytes(cls, b: bytes, dim: int = None):
+        try:
+            return cls(*struct.unpack(f'!{dim}Q', b))
+        except struct.error:
+            return cls(*unpack_bytes(b))
 
     @classmethod
     def random(cls, dim):
-        return cls(*(secrets.randbelow(65534) for _ in range(dim)))
+        return cls(*(secrets.randbelow(1112064000) for _ in range(dim)))
 
     def angle(self, n):
         r = math.hypot(*self[n:])
@@ -80,11 +86,3 @@ class Vector:
 
     def angles(self):
         return (self.angle(n) for n in range(1, len(self)))
-
-
-if __name__ == "__main__":
-    v = Vector(*(secrets.randbelow(65534) for _ in range(10)))
-    b = bytes(v)
-    v2 = Vector.from_bytes(b)
-
-    print(v, v2)
