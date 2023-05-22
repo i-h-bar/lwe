@@ -17,7 +17,7 @@ class Secret:
     def generate(cls, dim: int = 100):
         return cls((secrets.randbelow(6553400) for _ in range(dim)), secrets.randbelow(1112064000))
 
-    def _decode_bit(self, char):
+    def _decrypt_char(self, char):
         message_vector = Vector.from_bytes(char, len(self.vector) + 1)
         encoded_answer = message_vector[-1]
         my_answer = sum(self.vector * Vector(*message_vector[:-1])) % self.mod
@@ -26,8 +26,8 @@ class Secret:
         multiple = int((self.addition * round(answer / self.addition)) / self.addition)
         return chr(multiple)
 
-    def decode(self, secret: bytes):
-        return "".join(self._decode_bit(bit) for bit in secret.split(b"@~:/|`"))
+    def decrypt(self, secret: bytes):
+        return "".join(self._decrypt_char(bit) for bit in secret.split(b"@~:/|`"))
 
 
 class Public:
@@ -69,7 +69,7 @@ class Public:
 
         return cls(secret_key.mod, vectors)
 
-    def _encode_bit(self, char):
+    def _encrypt_char(self, char):
         encoders = random.choices(self.vectors, k=random.randint(1, self.max_encode_vectors))
         encoded_vector = Vector(*(0 for _ in range(self.dimension + 1)))
         for vector in encoders:
@@ -79,15 +79,14 @@ class Public:
 
         return bytes(encoded_vector)
 
-    def encode(self, message):
+    def encrypt(self, message):
         return b"@~:/|`".join(
-            self._encode_bit(bit) for bit in list(message)
+            self._encrypt_char(bit) for bit in list(message)
         )
 
     @staticmethod
     def error_max(mod):
         return round((mod // 1112064) * 0.1)
-
 
 
 if __name__ == "__main__":
@@ -96,6 +95,6 @@ if __name__ == "__main__":
 
     message = Path(".gitignore").read_text()
 
-    encoded_message = public.encode(message)
-    decoded_message = secret.decode(encoded_message)
+    encoded_message = public.encrypt(message)
+    decoded_message = secret.decrypt(encoded_message)
 
