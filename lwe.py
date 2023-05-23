@@ -15,7 +15,7 @@ class Secret:
     @classmethod
     def generate(cls, dim: int = 100):
         return cls((secrets.randbelow(6553400) for _ in range(dim)), secrets.randbelow(1112064000))
-cd lwe
+
     def _decrypt_char(self, char):
         message_vector = Vector.from_bytes(char, len(self.vector) + 1)
         encoded_answer = message_vector[-1]
