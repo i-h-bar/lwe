@@ -66,10 +66,10 @@ class Vector:
 
     @classmethod
     def from_bytes(cls, b: bytes, dim: int = None):
-        try:
-            return cls(*struct.unpack(f'!{dim}Q', b))
-        except struct.error:
+        if dim is None:
             return cls(*unpack_bytes(b))
+        else:
+            return cls(*struct.unpack(f'!{dim}Q', b))
 
     @classmethod
     def random(cls, dim):

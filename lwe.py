@@ -2,8 +2,7 @@ import random
 import secrets
 import struct
 from collections.abc import Iterable
-from pathlib import Path
-from time import perf_counter
+
 from vector import Vector
 
 
@@ -16,7 +15,7 @@ class Secret:
     @classmethod
     def generate(cls, dim: int = 100):
         return cls((secrets.randbelow(6553400) for _ in range(dim)), secrets.randbelow(1112064000))
-
+cd lwe
     def _decrypt_char(self, char):
         message_vector = Vector.from_bytes(char, len(self.vector) + 1)
         encoded_answer = message_vector[-1]
@@ -27,7 +26,9 @@ class Secret:
         return chr(multiple)
 
     def decrypt(self, secret: bytes):
-        return "".join(self._decrypt_char(bit) for bit in secret.split(b"@~:/|`"))
+        message_length = struct.unpack("!I", secret[:4])[0]
+        vectors = struct.unpack(f"{(len(self.vector) + 1) * 8}s" * message_length, secret[4:])
+        return "".join(self._decrypt_char(vector) for vector in vectors)
 
 
 class Public:
@@ -43,17 +44,19 @@ class Public:
         return f"{self.__class__.__name__}({self.mod}, Size({len(self.vectors)}))"
 
     def __bytes__(self):
-        b = struct.pack('>Q', self.mod)
-        b += b"@~:/|`"
-        b += b"@~:/|`".join(bytes(vector) for vector in self.vectors)
-
-        return b
+        return struct.pack(
+            '!QII' + f"{self.dimension*8}s"*len(self.vectors),
+            self.mod,
+            len(self.vectors),
+            self.dimension,
+            *(bytes(vector) for vector in self.vectors)
+        )
 
     @classmethod
     def from_bytes(cls, b: bytes):
-        b_mod, *b_vectors = b.split(b"@~:/|`")
-        mod = struct.unpack('>Q', b_mod)[0]
-        return cls(mod, (Vector.from_bytes(vector) for vector in b_vectors))
+        mod, size, dim = struct.unpack("!QII", b[:16])
+        vectors = struct.unpack(f"{dim*8}s"*size, b[16:])
+        return cls(mod, (Vector.from_bytes(vector) for vector in vectors))
 
     @classmethod
     def create(cls, secret_key: Secret):
@@ -80,8 +83,10 @@ class Public:
         return bytes(encoded_vector)
 
     def encrypt(self, message):
-        return b"@~:/|`".join(
-            self._encrypt_char(bit) for bit in list(message)
+        return struct.pack(
+            "!I" + f"{self.dimension * 8}s" * len(message),
+            len(message),
+            *(self._encrypt_char(bit) for bit in list(message))
         )
 
     @staticmethod
@@ -90,11 +95,18 @@ class Public:
 
 
 if __name__ == "__main__":
+    from pathlib import Path
+    from time import perf_counter
+
     secret = Secret.generate(dim=1000)
     public = Public.create(secret)
 
     message = Path(".gitignore").read_text()
 
+    t1 = perf_counter()
     encoded_message = public.encrypt(message)
-    decoded_message = secret.decrypt(encoded_message)
+    print(perf_counter() - t1)
 
+    t1 = perf_counter()
+    decoded_message = secret.decrypt(encoded_message)
+    print(perf_counter() - t1)
