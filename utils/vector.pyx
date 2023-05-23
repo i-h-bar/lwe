@@ -4,10 +4,7 @@ import operator
 import struct
 import reprlib
 import secrets
-import re
-import random
-
-from byte_conversion import unpack_bytes
+from typing import Generator
 
 
 class Vector:
@@ -24,8 +21,7 @@ class Vector:
         return str(self._components)
 
     def __bytes__(self):
-        b = struct.pack(f"!{len(self)}Q", *self._components)
-        return b
+        return struct.pack(f"!{len(self)}Q", *self._components)
 
     def __abs__(self):
         return math.hypot(*self)
@@ -86,3 +82,7 @@ class Vector:
 
     def angles(self):
         return (self.angle(n) for n in range(1, len(self)))
+
+def unpack_bytes(b: bytes) -> Generator[int, None, None]:
+    for i in range(0, len(b), 8):
+        yield struct.unpack('!Q', b[i:i + 8])[0]

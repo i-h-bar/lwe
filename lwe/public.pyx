@@ -1,34 +1,9 @@
 import random
-import secrets
 import struct
-from collections.abc import Iterable
+from typing import Iterable
 
-from vector import Vector
-
-
-class Secret:
-    def __init__(self, vector, mod):
-        self.mod = mod
-        self.vector = Vector(*vector)
-        self.addition = self.mod // 1112064
-
-    @classmethod
-    def generate(cls, dim: int = 100):
-        return cls((secrets.randbelow(6553400) for _ in range(dim)), secrets.randbelow(1112064000))
-
-    def _decrypt_char(self, char):
-        message_vector = Vector.from_bytes(char, len(self.vector) + 1)
-        encoded_answer = message_vector[-1]
-        my_answer = sum(self.vector * Vector(*message_vector[:-1])) % self.mod
-
-        answer = (encoded_answer - my_answer) % self.mod
-        multiple = int((self.addition * round(answer / self.addition)) / self.addition)
-        return chr(multiple)
-
-    def decrypt(self, secret: bytes):
-        message_length = struct.unpack("!I", secret[:4])[0]
-        vectors = struct.unpack(f"{(len(self.vector) + 1) * 8}s" * message_length, secret[4:])
-        return "".join(self._decrypt_char(vector) for vector in vectors)
+from lwe.secret import Secret
+from utils.vector import Vector
 
 
 class Public:
@@ -38,7 +13,7 @@ class Public:
         self.dimension = len(self.vectors[0])
         self.addition = self.mod // 1112064
         self.error_max = self.error_max(self.mod)
-        self.max_encode_vectors = (self.addition // self.error_max) - 1
+        self.max_encode_vectors = (self.addition // self.error_max) - 2
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.mod}, Size({len(self.vectors)}))"
@@ -72,13 +47,13 @@ class Public:
 
         return cls(secret_key.mod, vectors)
 
-    def _encrypt_char(self, char):
+    def _encrypt_char(self, character):
         encoders = random.choices(self.vectors, k=random.randint(1, self.max_encode_vectors))
         encoded_vector = Vector(*(0 for _ in range(self.dimension + 1)))
         for vector in encoders:
             encoded_vector += vector
 
-        encoded_vector[-1] = (encoded_vector[-1] + self.addition * ord(char)) % self.mod
+        encoded_vector[-1] = (encoded_vector[-1] + self.addition * ord(character)) % self.mod
 
         return bytes(encoded_vector)
 
@@ -86,27 +61,9 @@ class Public:
         return struct.pack(
             "!I" + f"{self.dimension * 8}s" * len(message),
             len(message),
-            *(self._encrypt_char(bit) for bit in list(message))
+            *(self._encrypt_char(bit) for bit in message)
         )
 
     @staticmethod
     def error_max(mod):
-        return round((mod // 1112064) * 0.1)
-
-
-if __name__ == "__main__":
-    from pathlib import Path
-    from time import perf_counter
-
-    secret = Secret.generate(dim=1000)
-    public = Public.create(secret)
-
-    message = Path(".gitignore").read_text()
-
-    t1 = perf_counter()
-    encoded_message = public.encrypt(message)
-    print(perf_counter() - t1)
-
-    t1 = perf_counter()
-    decoded_message = secret.decrypt(encoded_message)
-    print(perf_counter() - t1)
+        return round((mod // 1112064) * 0.05)
