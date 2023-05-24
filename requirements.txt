@@ -1,2 +1,3 @@
 setuptools~=65.5.1
 Cython~=0.29.34
+line-profiler==3.5.1

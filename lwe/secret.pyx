@@ -1,26 +1,38 @@
 import secrets
 import struct
 
-from utils.vector import Vector
+import numpy
+cimport numpy
+numpy.import_array()
+
+from utils.numpy_const import INT
+
+cdef int closest_multiple(int num, int target):
+    return (target * round(num / target)) / target
 
 
 class Secret:
-    def __init__(self, vector, mod):
+    def __init__(self, vector: numpy.array, mod):
         self.mod = mod
-        self.vector = Vector(*vector)
+        self.vector = vector
         self.addition = self.mod // 1112064
 
     @classmethod
     def generate(cls, dim: int = 100):
-        return cls((secrets.randbelow(6553400) for _ in range(dim)), secrets.randbelow(1112064000))
+        return cls(
+            numpy.array(tuple(secrets.randbelow(65534) for _ in range(dim)), dtype=INT),
+            secrets.randbelow(1112064000)
+        )
 
     def _decrypt_char(self, character):
-        message_vector = Vector.from_bytes(character, len(self.vector) + 1)
+        message_vector = numpy.frombuffer(character, dtype=INT)
         encoded_answer = message_vector[-1]
-        my_answer = sum(self.vector * Vector(*message_vector[:-1])) % self.mod
+        encoded_vector = message_vector[:-1]
+        vector_multiple = self.vector * encoded_vector
+        my_answer = vector_multiple.sum() % self.mod
 
         answer = (encoded_answer - my_answer) % self.mod
-        multiple = int((self.addition * round(answer / self.addition)) / self.addition)
+        multiple = closest_multiple(answer, self.addition)
         return chr(multiple)
 
     def decrypt(self, secret: bytes):

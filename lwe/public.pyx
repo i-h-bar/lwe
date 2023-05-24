@@ -1,13 +1,20 @@
 import random
+import secrets
 import struct
 from typing import Iterable
 
+import numpy
+cimport numpy
+
+from utils.numpy_const import INT
+
+numpy.import_array()
+
 from lwe.secret import Secret
-from utils.vector import Vector
 
 
 class Public:
-    def __init__(self, mod: int, vectors: Iterable[Vector]):
+    def __init__(self, mod: int, vectors: Iterable[numpy.array]):
         self.mod = mod
         self.vectors = tuple(vectors)
         self.dimension = len(self.vectors[0])
@@ -31,7 +38,7 @@ class Public:
     def from_bytes(cls, b: bytes):
         mod, size, dim = struct.unpack("!QII", b[:16])
         vectors = struct.unpack(f"{dim*8}s"*size, b[16:])
-        return cls(mod, (Vector.from_bytes(vector) for vector in vectors))
+        return cls(mod, (numpy.frombuffer(b, dtype=INT) for vector in vectors))
 
     @classmethod
     def create(cls, secret_key: Secret):
@@ -40,22 +47,22 @@ class Public:
         vectors = []
 
         for _ in range(dimension // 2):
-            equation = Vector.random(dimension)
+            equation = numpy.array(tuple(secrets.randbelow(1112064000) for _ in range(dimension)), dtype=numpy.int64)
             answer = sum(equation * secret_key.vector) % secret_key.mod
             answer = (answer + random.randint(-error_max, error_max)) % secret_key.mod
-            vectors.append(Vector(*equation, answer))
+            vectors.append(numpy.array([*equation, answer], dtype=INT))
 
         return cls(secret_key.mod, vectors)
 
     def _encrypt_char(self, character):
         encoders = random.choices(self.vectors, k=random.randint(1, self.max_encode_vectors))
-        encoded_vector = Vector(*(0 for _ in range(self.dimension + 1)))
+        encoded_vector = numpy.zeros(self.dimension, dtype=INT)
         for vector in encoders:
             encoded_vector += vector
 
         encoded_vector[-1] = (encoded_vector[-1] + self.addition * ord(character)) % self.mod
 
-        return bytes(encoded_vector)
+        return encoded_vector.tobytes()
 
     def encrypt(self, message):
         return struct.pack(
