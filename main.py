@@ -1,7 +1,3 @@
-import pyximport
-import numpy as np
-pyximport.install(setup_args={'include_dirs': np.get_include()})
-
 from pathlib import Path
 
 from lwe.public import Public
@@ -36,7 +32,6 @@ def perf_time():
     t1 = perf_counter()
     decrypted = secret.decrypt(encrypted)
     print(perf_counter() - t1)
-    # print(decrypted)
 
 
 if __name__ == "__main__":

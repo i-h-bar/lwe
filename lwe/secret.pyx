@@ -21,7 +21,7 @@ class Secret:
     def generate(cls, dim: int = 100):
         return cls(
             numpy.array(tuple(secrets.randbelow(65534) for _ in range(dim)), dtype=INT),
-            secrets.randbelow(1112064000)
+            secrets.choice(range(111206400, 1112064000))
         )
 
     def _decrypt_char(self, character):

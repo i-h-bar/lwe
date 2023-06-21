@@ -5,14 +5,14 @@ from setuptools import setup
 
 directive_defaults = get_directive_defaults()
 
-directive_defaults['profile'] = True
-directive_defaults["linetrace"] = True
+# directive_defaults['profile'] = True
+# directive_defaults["linetrace"] = True
 directive_defaults["language_level"] = 3
-directive_defaults['binding'] = True
+# directive_defaults['binding'] = True
 
 extensions = [
     Extension(
-        path[:-4].replace("/", "."), [path], include_dirs=[numpy.get_include()], define_macros=[("CYTHON_TRACE", "1")]
+        path[:-4].replace("/", "."), [path], include_dirs=[numpy.get_include()], #define_macros=[("CYTHON_TRACE", "1")]
     )
     for path in ["lwe/public.pyx", "lwe/secret.pyx"]
 ]

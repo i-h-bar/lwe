@@ -1,6 +1,5 @@
-import random
-import secrets
 import struct
+import secrets
 from typing import Iterable
 
 import numpy
@@ -46,19 +45,18 @@ class Public:
         error_max = cls.error_max(secret_key.mod)
         vectors = []
 
-        for _ in range(dimension // 2):
+        for _ in range(dimension * 10):
             equation = numpy.array(tuple(secrets.randbelow(1112064000) for _ in range(dimension)), dtype=numpy.int64)
             answer = sum(equation * secret_key.vector) % secret_key.mod
-            answer = (answer + random.randint(-error_max, error_max)) % secret_key.mod
+            answer = (answer + secrets.choice(range(-error_max, error_max))) % secret_key.mod
             vectors.append(numpy.array([*equation, answer], dtype=INT))
 
         return cls(secret_key.mod, vectors)
 
     def _encrypt_char(self, character):
-        encoders = random.choices(self.vectors, k=random.randint(1, self.max_encode_vectors))
         encoded_vector = numpy.zeros(self.dimension, dtype=INT)
-        for vector in encoders:
-            encoded_vector += vector
+        for _ in range(secrets.choice(range(1, self.max_encode_vectors))):
+            encoded_vector += self.vectors[secrets.randbelow(len(self.vectors))]
 
         encoded_vector[-1] = (encoded_vector[-1] + self.addition * ord(character)) % self.mod
 
