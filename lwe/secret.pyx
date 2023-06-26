@@ -5,7 +5,7 @@ import numpy
 cimport numpy
 numpy.import_array()
 
-from utils.numpy_const import INT
+from utils.const import INT, MAX_CHR
 
 cdef int closest_multiple(int num, int target):
     return (target * round(num / target)) / target
@@ -15,7 +15,7 @@ class Secret:
     def __init__(self, vector: numpy.array, mod):
         self.mod = mod
         self.vector = vector
-        self.addition = self.mod // 1112064
+        self.addition = self.mod // MAX_CHR
 
     @classmethod
     def generate(cls, dim: int = 100):

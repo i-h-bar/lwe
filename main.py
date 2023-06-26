@@ -5,22 +5,10 @@ from lwe.secret import Secret
 
 from time import perf_counter
 
-def line_profile():
-    Secret._decrypt_char = profile(Secret._decrypt_char)
-    # Secret.decrypt = profile(Secret.decrypt)
-
-    secret = Secret.generate(dim=1000)
-    public = Public.create(secret)
-
-    message = Path(".gitignore").read_text()
-
-
-    encrypted = public.encrypt(message)
-    decrypted = secret.decrypt(encrypted)
-
 def perf_time():
-    secret = Secret.generate(dim=10)
+    secret = Secret.generate(dim=100)
     public = Public.create(secret)
+    print(public.error_max)
 
     message = Path(".gitignore").read_text()
     print(len(message))
@@ -28,10 +16,12 @@ def perf_time():
     t1 = perf_counter()
     encrypted = public.encrypt(message)
     print(perf_counter() - t1)
+    print(len(encrypted) // 1000)
 
     t1 = perf_counter()
     decrypted = secret.decrypt(encrypted)
     print(perf_counter() - t1)
+    # print(decrypted)
 
 
 if __name__ == "__main__":

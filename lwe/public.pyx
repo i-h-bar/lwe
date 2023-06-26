@@ -5,7 +5,7 @@ from typing import Iterable
 import numpy
 cimport numpy
 
-from utils.numpy_const import INT
+from utils.const import INT, MAX_CHR
 
 numpy.import_array()
 
@@ -17,12 +17,12 @@ class Public:
         self.mod = mod
         self.vectors = tuple(vectors)
         self.dimension = len(self.vectors[0])
-        self.addition = self.mod // 1112064
-        self.error_max = self.error_max(self.mod)
+        self.addition = self.mod // MAX_CHR
+        self.error_max = self._error_max(self.mod)
         self.max_encode_vectors = (self.addition // self.error_max) - 2
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.mod}, Size({len(self.vectors)}))"
+        return f"{self.__class__.__name__}({self.mod}, Dim({self.dimension}))"
 
     def __bytes__(self):
         return struct.pack(
@@ -42,14 +42,14 @@ class Public:
     @classmethod
     def create(cls, secret_key: Secret):
         dimension = len(secret_key.vector)
-        error_max = cls.error_max(secret_key.mod)
+        error_max = cls._error_max(secret_key.mod)
         vectors = []
 
         for _ in range(dimension * 10):
-            equation = numpy.array(tuple(secrets.randbelow(1112064000) for _ in range(dimension)), dtype=numpy.int64)
+            equation = numpy.array(tuple(secrets.randbelow(1112064000) for _ in range(dimension)), dtype=INT)
             answer = sum(equation * secret_key.vector) % secret_key.mod
             answer = (answer + secrets.choice(range(-error_max, error_max))) % secret_key.mod
-            vectors.append(numpy.array([*equation, answer], dtype=INT))
+            vectors.append(numpy.array((*equation, answer), dtype=INT))
 
         return cls(secret_key.mod, vectors)
 
@@ -70,5 +70,5 @@ class Public:
         )
 
     @staticmethod
-    def error_max(mod):
-        return round((mod // 1112064) * 0.05)
+    def _error_max(mod):
+        return round((mod // MAX_CHR) * 0.05)
