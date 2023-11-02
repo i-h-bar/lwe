@@ -1,29 +1,26 @@
 from pathlib import Path
+from time import perf_counter
 
 from lwe.public import Public
 from lwe.secret import Secret
 
-from time import perf_counter
 
-def perf_time():
-    secret = Secret.generate(dim=100)
+def main():
+    secret = Secret.generate()
     public = Public.create(secret)
-    print(public.error_max)
 
-    message = Path(".gitignore").read_text()
+    message = Path(".gitignore").read_text() * 200
     print(len(message))
 
     t1 = perf_counter()
     encrypted = public.encrypt(message)
     print(perf_counter() - t1)
-    print(len(encrypted) // 1000)
+    print(len(encrypted) // 1000, "KB")
 
     t1 = perf_counter()
     decrypted = secret.decrypt(encrypted)
     print(perf_counter() - t1)
-    # print(decrypted)
 
 
 if __name__ == "__main__":
-    perf_time()
-    # line_profile()
+    main()
