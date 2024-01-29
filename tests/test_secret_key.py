@@ -1,5 +1,4 @@
-from lwe.public import Public
-from lwe.secret import Secret
+from lwe.keys.secret import Secret
 
 secret = Secret.generate()
 

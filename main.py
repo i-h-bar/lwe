@@ -1,8 +1,9 @@
 from pathlib import Path
-from time import perf_counter
 
-from lwe.public import Public
-from lwe.secret import Secret
+from line_profiler import LineProfiler
+
+from lwe.keys.public import Public
+from lwe.keys.secret import Secret
 
 
 def main():
@@ -10,16 +11,12 @@ def main():
     public = Public.create(secret)
 
     message = Path(".gitignore").read_text() * 200
-    print(len(message))
-
-    t1 = perf_counter()
     encrypted = public.encrypt(message)
-    print(perf_counter() - t1)
-    print(len(encrypted) // 1000, "KB")
 
-    t1 = perf_counter()
-    decrypted = secret.decrypt(encrypted)
-    print(perf_counter() - t1)
+    profiler = LineProfiler()
+    wrapped = profiler(secret.decrypt)
+    wrapped(encrypted)
+    profiler.print_stats()
 
 
 if __name__ == "__main__":
