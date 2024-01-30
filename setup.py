@@ -1,8 +1,12 @@
+import sys
 from distutils.core import setup
 from glob import glob
 
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 
+
+sys.argv.append("build_ext")
+sys.argv.append("--inplace")
 cpp_modules = sorted(glob("**/*.cpp"))
 
 setup(

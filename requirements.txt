@@ -1,3 +1,2 @@
 numpy~=1.26.1
 numba~=0.58.1
-Cython==3.0.8

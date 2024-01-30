@@ -3,9 +3,9 @@ import struct
 
 import numba
 import numpy
-import encoding
+from .. import encoding
 
-from lwe.utils.const import INT, MAX_CHR
+from ..utils.const import INT, MAX_CHR
 
 
 def closest_multiple(num: int, target: int):

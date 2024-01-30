@@ -4,10 +4,10 @@ import struct
 import numpy
 import numba
 
-from lwe.utils.rng import rng
-from lwe.utils.const import INT, MAX_CHR
+from ..utils.rng import rng
+from ..utils.const import INT, MAX_CHR
 
-from lwe.keys.secret import Secret
+from .. import Secret
 
 
 class Public:
