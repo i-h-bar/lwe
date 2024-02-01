@@ -18,7 +18,7 @@ std::string decode(py::array_t<int, 32> array) {
 }
 
 
-PYBIND11_MODULE(encoding, handle) {
+PYBIND11_MODULE(lwe, handle) {
     handle.doc() = "Module to decode an array of int to message string";
     handle.def("decode", &decode);
 }

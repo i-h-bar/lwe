@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69", "wheel", "pybind11~=2.6.1"]
+requires = ["setuptools>=69", "wheel", "pybind11~=2.11"]
 build-backend = "setuptools.build_meta"
 
 
@@ -16,7 +16,7 @@ version = "0.0.1"
 dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.packages.find]
-exclude = ["tests*", "*.cpp"]
+exclude = ["tests*", "lwe.cpp"]
 include = ["lwe*"]
 namespaces = false
 

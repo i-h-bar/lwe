@@ -3,7 +3,7 @@ import struct
 
 import numba
 import numpy
-from .. import encoding
+from .. import lwe
 
 from lwe.utils.const import INT, MAX_CHR
 
@@ -57,7 +57,7 @@ class Secret:
         solved_vector = solved_matrix[:, -1]
         extract_char(solved_vector, encrypted_message, self.mod, self.addition)
 
-        return encoding.decode(solved_vector)
+        return lwe.decode(solved_vector)
 
 
 @numba.jit(target_backend="cuda", nopython=True)
