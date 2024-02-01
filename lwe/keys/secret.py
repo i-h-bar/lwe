@@ -1,11 +1,11 @@
-import lzma
 import secrets
 import struct
 
 import numba
 import numpy
+from .. import lwe
 
-from utils.const import INT, MAX_CHR
+from lwe.utils.const import INT, MAX_CHR
 
 
 def closest_multiple(num: int, target: int):
@@ -55,9 +55,9 @@ class Secret:
 
         solve_encodings(encodings, self.vector, solved_matrix)
         solved_vector = solved_matrix[:, -1]
-
         extract_char(solved_vector, encrypted_message, self.mod, self.addition)
-        return "".join(chr(x) for x in solved_vector)
+
+        return lwe.decode(solved_vector)
 
 
 @numba.jit(target_backend="cuda", nopython=True)
@@ -73,10 +73,4 @@ def solve_encodings(encodings, secret_key, solved_matrix):
 @numba.jit(target_backend="cuda", nopython=True)
 def extract_char(solved_vector, encrypted_message, mod, addition):
     for i in numba.prange(solved_vector.shape[0]):
-        solved_vector[i] = closest_multiple((encrypted_message[i] - solved_vector[i]) % mod, addition)
-
-
-@numba.jit(nopython=True)
-def closest_multiple(num, target):
-    return (target * round(num / target)) / target
-
+        solved_vector[i] = (addition * round(((encrypted_message[i] - solved_vector[i]) % mod) / addition)) / addition

@@ -4,10 +4,10 @@ import struct
 import numpy
 import numba
 
-from utils.rng import rng
-from utils.const import INT, MAX_CHR
+from lwe.utils.rng import rng
+from lwe.utils.const import INT, MAX_CHR
 
-from lwe.secret import Secret
+from .. import Secret
 
 
 class Public:
@@ -91,26 +91,26 @@ class Public:
         secret_key.decrypt(encrypted)
 
 
-@numba.jit(target_backend="cuda", nopython=True)
+@numba.jit(target_backend="cuda", nopython=True, parallel=True)
 def solve_public_matrix(public_matrix: numpy.array, secret_key, errors: numpy.array):
     for i in numba.prange(len(public_matrix)):
         public_matrix[i, -1] = numpy.sum(public_matrix[i, :-1] * secret_key)
         public_matrix[i, -1] = public_matrix[i, -1] + errors[i]
 
 
-@numba.jit(target_backend="cuda", nopython=True)
+@numba.jit(target_backend="cuda", nopython=True, parallel=True)
 def encode_message(encoding_matrix, message_vector, mod):
     for i in numba.prange(len(message_vector)):
         encoding_matrix[i, -1] = (encoding_matrix[i, -1] + message_vector[i]) % mod
 
 
-@numba.jit(target_backend="cuda", nopython=True)
+@numba.jit(target_backend="cuda", nopython=True, parallel=True)
 def add_encoding_vector(encoding_matrix, vector, index):
     for x in numba.prange(vector.shape[0]):
         encoding_matrix[index, x] = (encoding_matrix[index, x] + vector[x])
 
 
-@numba.jit(target_backend="cuda", nopython=True)
+@numba.jit(target_backend="cuda", nopython=True, parallel=True)
 def create_encryption_matrix(dimension, encoding_vectors, message_length, num_of_matrices, vector_to_use):
     encoding_matrix = numpy.zeros((message_length, dimension), dtype=INT)
     for i in numba.prange(message_length):

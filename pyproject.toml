@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69", "wheel", "pybind11~=2.11"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "lwe"
+dynamic = ["dependencies"]
+requires-python = ">= 3.11"
+readme = "README.md"
+description = "A python/c++ implementation of the Learning With Errors algorithm"
+version = "0.0.1"
+
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+exclude = ["tests*", "lwe.cpp"]
+include = ["lwe*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+mypkg = ["*.pyd", "*.so"]
