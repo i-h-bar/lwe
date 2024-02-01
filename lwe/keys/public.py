@@ -4,10 +4,11 @@ import struct
 import numpy
 import numba
 
-from lwe.utils.rng import rng
-from lwe.utils.const import INT, MAX_CHR
+from ..utils.rng import rng
+from ..utils.const import INT, MAX_CHR
 
 from .. import Secret
+from .. import lwe
 
 
 class Public:
@@ -72,9 +73,10 @@ class Public:
         encryption_matrix = create_encryption_matrix(
             self.dimension, self.public_matrix, len(message), num_of_matrices, vector_to_use
         )
-        message_vector = numpy.array([self.addition * ord(bit) for bit in message], dtype=INT)
 
-        encode_message(encryption_matrix, message_vector, self.mod)
+        message_vector = lwe.encode(message, self.addition)
+
+        encrypt_message(encryption_matrix, message_vector, self.mod)
 
         return struct.pack(
                 "!I" + f"{self.dimension * 4 * len(message)}s",
@@ -99,9 +101,9 @@ def solve_public_matrix(public_matrix: numpy.array, secret_key, errors: numpy.ar
 
 
 @numba.jit(target_backend="cuda", nopython=True, parallel=True)
-def encode_message(encoding_matrix, message_vector, mod):
+def encrypt_message(encrypt_matrix, message_vector, mod):
     for i in numba.prange(len(message_vector)):
-        encoding_matrix[i, -1] = (encoding_matrix[i, -1] + message_vector[i]) % mod
+        encrypt_matrix[i, -1] = (encrypt_matrix[i, -1] + message_vector[i]) % mod
 
 
 @numba.jit(target_backend="cuda", nopython=True, parallel=True)
