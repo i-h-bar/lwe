@@ -1,4 +1,4 @@
-from lwe.keys.secret import Secret
+from lwe import Secret
 
 secret = Secret.generate()
 

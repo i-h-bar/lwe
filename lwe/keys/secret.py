@@ -5,7 +5,7 @@ import numba
 import numpy
 from .. import encoding
 
-from ..utils.const import INT, MAX_CHR
+from lwe.utils.const import INT, MAX_CHR
 
 
 def closest_multiple(num: int, target: int):

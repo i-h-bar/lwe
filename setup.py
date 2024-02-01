@@ -1,15 +1,21 @@
 import sys
 from distutils.core import setup
-from glob import glob
-
-from pybind11.setup_helpers import Pybind11Extension, build_ext
-
+from distutils.extension import Extension
+import pybind11
 
 sys.argv.append("build_ext")
 sys.argv.append("--inplace")
-cpp_modules = sorted(glob("**/*.cpp"))
+cpp_modules = ["lwe/utils/encoding.cpp"]
+
+ext_modules = [
+    Extension(
+        'lwe.encoding',
+        cpp_modules,
+        include_dirs=[pybind11.get_include()],
+        language='c++'
+    )
+]
 
 setup(
-    cmdclass={"build_ext": build_ext},
-    ext_modules=[Pybind11Extension("encoding", cpp_modules)],
+    ext_modules=ext_modules
 )

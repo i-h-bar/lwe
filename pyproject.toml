@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "pybind11~=2.6.1"]
+requires = ["setuptools>=69", "wheel", "pybind11~=2.6.1"]
 build-backend = "setuptools.build_meta"
 
 
@@ -15,5 +15,10 @@ version = "0.0.1"
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 
-[tool.setuptools]
-py-modules = ["src"]
+[tool.setuptools.packages.find]
+exclude = ["tests*", "*.cpp"]
+include = ["lwe*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+mypkg = ["*.pyd", "*.so"]

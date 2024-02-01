@@ -4,8 +4,8 @@ import struct
 import numpy
 import numba
 
-from ..utils.rng import rng
-from ..utils.const import INT, MAX_CHR
+from lwe.utils.rng import rng
+from lwe.utils.const import INT, MAX_CHR
 
 from .. import Secret
 
