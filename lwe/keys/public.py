@@ -67,14 +67,17 @@ class Public:
         with open("pub.pkl", "rb") as in_pkl:
             return pickle.load(in_pkl)
 
-    def encrypt(self, message):
-        num_of_matrices = rng.integers(2, self.max_encode_vectors, size=len(message))
-        vector_to_use = rng.integers(0, self.public_matrix.shape[0] - 1, size=len(message) * self.max_encode_vectors)
+    def encrypt(self, message, utf8: bool = False):
+        num_of_matrices = rng.integers(2, self.max_encode_vectors + 1, size=len(message))
+        vector_to_use = rng.integers(0, self.public_matrix.shape[0], size=len(message) * self.max_encode_vectors)
         encryption_matrix = create_encryption_matrix(
             self.dimension, self.public_matrix, len(message), num_of_matrices, vector_to_use
         )
 
-        message_vector = lwe.encode(message, self.addition)
+        if utf8:
+            message_vector = lwe.encode_utf8(message, self.addition)
+        else:
+            message_vector = lwe.encode(message, self.addition)
 
         encrypt_message(encryption_matrix, message_vector, self.mod)
 
