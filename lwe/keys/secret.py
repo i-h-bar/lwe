@@ -45,7 +45,7 @@ class Secret:
             secrets.choice(range(111206400, 1112064000))
         )
 
-    def decrypt(self, secret, utf8: bool = False):
+    def decrypt(self, secret):
         message_length = struct.unpack("!I", secret[:4])[0]
         message = numpy.frombuffer(secret[4:], dtype=INT).reshape((message_length, len(self.vector) + 1))
 
@@ -57,10 +57,7 @@ class Secret:
         solved_vector = solved_matrix[:, -1]
         extract_char(solved_vector, encrypted_message, self.mod, self.addition)
 
-        if utf8:
-            return lwe.decode_utf8(solved_vector)
-        else:
-            return lwe.decode(solved_vector)
+        return lwe.decode(solved_vector, solved_vector.max())
 
 
 @numba.jit(target_backend="cuda", nopython=True)
