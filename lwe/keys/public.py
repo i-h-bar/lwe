@@ -87,7 +87,7 @@ class Public:
 
     @staticmethod
     def _error_max(mod):
-        return round((mod // MAX_CHR) * 0.1)
+        return round((mod // MAX_CHR) * 0.05)
 
     def __compile(self, secret_key: Secret):
         encrypted = self.encrypt("xyz")

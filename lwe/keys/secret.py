@@ -48,26 +48,22 @@ class Secret:
     def decrypt(self, secret):
         message_length = struct.unpack("!I", secret[:4])[0]
         message = numpy.frombuffer(secret[4:], dtype=INT).reshape((message_length, len(self.vector) + 1))
-
-        solved_matrix = numpy.zeros(message.shape, dtype=INT)
+        solved_vector = numpy.zeros(message.shape[0], dtype=INT)
         encodings = message[:, :-1]
         encrypted_message = message[:, -1]
 
-        solve_encodings(encodings, self.vector, solved_matrix)
-        solved_vector = solved_matrix[:, -1]
+        solve_encodings(encodings, self.vector, solved_vector)
         extract_char(solved_vector, encrypted_message, self.mod, self.addition)
 
         return lwe.decode(solved_vector, solved_vector.max())
 
 
-@numba.jit(target_backend="cuda", nopython=True)
+@numba.jit(target_backend="cuda", nopython=True, parallel=True)
 def solve_encodings(encodings, secret_key, solved_matrix):
     for i in numba.prange(encodings.shape[0]):
         for x in numba.prange(encodings.shape[1]):
-            solved_matrix[i, x] = (encodings[i, x] * secret_key[x])
+            solved_matrix[i] += encodings[i, x] * secret_key[x]
 
-    for i in numba.prange(solved_matrix.shape[0]):
-        solved_matrix[i, -1] = numpy.sum(solved_matrix[i, :-1])
 
 
 @numba.jit(target_backend="cuda", nopython=True)
