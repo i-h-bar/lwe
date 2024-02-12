@@ -54,8 +54,6 @@ class Public:
         solve_public_matrix(public_matrix, secret_key.vector, errors)
         public_key = cls(secret_key.mod, public_matrix)
 
-        public_key.__compile(secret_key)
-
         return public_key
 
     def to_pickle_file(self):
@@ -80,18 +78,14 @@ class Public:
         encrypt_message(encryption_matrix, message_vector, self.mod)
 
         return struct.pack(
-                "!I" + f"{self.dimension * 4 * length}s",
-                length,
-                encryption_matrix.tobytes()
-            )
+            "!I" + f"{self.dimension * 4 * length}s",
+            length,
+            encryption_matrix.tobytes()
+        )
 
     @staticmethod
     def _error_max(mod):
         return round((mod // MAX_CHR) * 0.05)
-
-    def __compile(self, secret_key: Secret):
-        encrypted = self.encrypt("xyz")
-        secret_key.decrypt(encrypted)
 
 
 @numba.jit(target_backend="cuda", nopython=True, parallel=True)

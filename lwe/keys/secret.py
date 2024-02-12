@@ -6,10 +6,7 @@ import numpy
 from .. import lwe
 
 from lwe.utils.const import INT, MAX_CHR
-
-
-def closest_multiple(num: int, target: int):
-    return (target * round(num / target)) / target
+from numba import types
 
 
 class Secret:
@@ -40,21 +37,28 @@ class Secret:
 
     @classmethod
     def generate(cls, dim: int = 10):
-        return cls(
-            numpy.array([secrets.choice(range(-65534, 65534)) for _ in range(dim)], dtype=INT),
-            secrets.choice(range(111206400, 1112064000))
-        )
+        secret = numpy.array([secrets.choice(range(-65534, 65534)) for _ in range(dim)], dtype=INT)
+        secret.setflags(write=False)
+        return cls(secret, types.int32(secrets.choice(range(111206400, 1112064000))))
 
     def decrypt(self, secret):
         message_length = struct.unpack("!I", secret[:4])[0]
-        solved_vector = solve(secret[4:], message_length, self.vector, self.addition, self.mod)
+        message = numpy.frombuffer(secret[4:], dtype=INT).reshape((message_length, len(self.vector) + 1))
+        solved_vector = solve(message, self.vector, self.addition, self.mod)
 
         return lwe.decode(solved_vector, solved_vector.max())
 
 
-@numba.jit(target_backend="cuda", nopython=True, parallel=True)
-def solve(secret, message_length, secret_key, addition, mod):
-    message = numpy.frombuffer(secret, dtype=INT).reshape((message_length, len(secret_key) + 1))
+@numba.njit(
+    types.Array(types.int32, 1, "C")(
+        types.Array(types.int32, 2, "C", readonly=True),
+        types.Array(types.int32, 1, "C", readonly=True),
+        types.int32,
+        types.int32
+    ),
+    parallel=True, fastmath=True
+)
+def solve(message, secret_key, addition, mod):
     solved_vector = numpy.zeros(message.shape[0], dtype=INT)
     for i in numba.prange(message.shape[0]):
         for x in numba.prange(message.shape[1] - 1):
