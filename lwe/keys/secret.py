@@ -3,6 +3,7 @@ import struct
 
 import numba
 import numpy
+
 from .. import lwe
 
 from lwe.utils.const import INT, MAX_CHR
@@ -10,10 +11,19 @@ from numba import types
 
 
 class Secret:
-    def __init__(self, vector: numpy.array, mod):
+    def __new__(cls, *args, **kwargs):
+        if kwargs.get("cuda"):
+            from ._gpu.secret import GPUSecret
+            kwargs.pop("cuda")
+            return GPUSecret(*args)
+        else:
+            return object.__new__(cls)
+
+    def __init__(self, vector: numpy.array, mod: int, cuda: bool = False):
         self.mod = mod
         self.vector = vector
         self.addition = self.mod // MAX_CHR
+        self.dimension = types.int32(len(self.vector))
 
         if self.vector.flags.writeable:
             self.vector.setflags(write=False)
@@ -39,9 +49,9 @@ class Secret:
         return cls(vector, mod)
 
     @classmethod
-    def generate(cls, dim: int = 10):
+    def generate(cls, dim: int = 10, cuda: bool = False):
         secret = numpy.array([secrets.choice(range(-65534, 65534)) for _ in range(dim)], dtype=INT)
-        return cls(secret, types.int32(secrets.choice(range(111206400, 1112064000))))
+        return cls(secret, types.int32(secrets.choice(range(111206400, 1112064000))), cuda=cuda)
 
     def decrypt(self, secret):
         message_length = struct.unpack("!I", secret[:4])[0]

@@ -101,7 +101,7 @@ class Public:
 def encrypt_message(message_vector, public_matrix, mod, max_vectors, message_len, dim):
     encrypted_message = numpy.zeros((message_len, dim), dtype=INT)
     for i in numba.prange(message_len):
-        for _ in numba.prange(random.randint(2, max_vectors)): # Find new random that works in njit func
+        for _ in numba.prange(random.randint(2, max_vectors)):  # Find new random that works in njit func
             encrypted_message[i] += public_matrix[random.randint(0, public_matrix.shape[0] - 1)]
 
         encrypted_message[i, -1] = (encrypted_message[i, -1] + message_vector[i]) % mod
