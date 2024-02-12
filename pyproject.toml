@@ -9,14 +9,14 @@ dynamic = ["dependencies"]
 requires-python = ">= 3.11"
 readme = "README.md"
 description = "A python/c++ implementation of the Learning With Errors algorithm"
-version = "0.0.1"
+version = "0.0.2"
 
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.packages.find]
-exclude = ["tests*", "lwe.cpp"]
+exclude = ["tests*", "*lwe.cpp"]
 include = ["lwe*"]
 namespaces = false
 

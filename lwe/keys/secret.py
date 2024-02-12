@@ -6,10 +6,7 @@ import numpy
 from .. import lwe
 
 from lwe.utils.const import INT, MAX_CHR
-
-
-def closest_multiple(num: int, target: int):
-    return (target * round(num / target)) / target
+from numba import types
 
 
 class Secret:
@@ -40,37 +37,33 @@ class Secret:
 
     @classmethod
     def generate(cls, dim: int = 10):
-        return cls(
-            numpy.array([secrets.choice(range(-65534, 65534)) for _ in range(dim)], dtype=INT),
-            secrets.choice(range(111206400, 1112064000))
-        )
+        secret = numpy.array([secrets.choice(range(-65534, 65534)) for _ in range(dim)], dtype=INT)
+        secret.setflags(write=False)
+        return cls(secret, types.int32(secrets.choice(range(111206400, 1112064000))))
 
     def decrypt(self, secret):
         message_length = struct.unpack("!I", secret[:4])[0]
         message = numpy.frombuffer(secret[4:], dtype=INT).reshape((message_length, len(self.vector) + 1))
+        solved_vector = solve(message, self.vector, self.addition, self.mod)
 
-        solved_matrix = numpy.zeros(message.shape, dtype=INT)
-        encodings = message[:, :-1]
-        encrypted_message = message[:, -1]
-
-        solve_encodings(encodings, self.vector, solved_matrix)
-        solved_vector = solved_matrix[:, -1]
-        extract_char(solved_vector, encrypted_message, self.mod, self.addition)
-
-        return lwe.decode(solved_vector)
+        return lwe.decode(solved_vector, solved_vector.max())
 
 
-@numba.jit(target_backend="cuda", nopython=True)
-def solve_encodings(encodings, secret_key, solved_matrix):
-    for i in numba.prange(encodings.shape[0]):
-        for x in numba.prange(encodings.shape[1]):
-            solved_matrix[i, x] = (encodings[i, x] * secret_key[x])
+@numba.njit(
+    types.Array(types.int32, 1, "C")(
+        types.Array(types.int32, 2, "C", readonly=True),
+        types.Array(types.int32, 1, "C", readonly=True),
+        types.int32,
+        types.int32
+    ),
+    parallel=True, fastmath=True
+)
+def solve(message, secret_key, addition, mod):
+    solved_vector = numpy.zeros(message.shape[0], dtype=INT)
+    for i in numba.prange(message.shape[0]):
+        for x in numba.prange(message.shape[1] - 1):
+            solved_vector[i] += message[i, x] * secret_key[x]
 
-    for i in numba.prange(solved_matrix.shape[0]):
-        solved_matrix[i, -1] = numpy.sum(solved_matrix[i, :-1])
+        solved_vector[i] = (addition * round(((message[i, -1] - solved_vector[i]) % mod) / addition)) / addition
 
-
-@numba.jit(target_backend="cuda", nopython=True)
-def extract_char(solved_vector, encrypted_message, mod, addition):
-    for i in numba.prange(solved_vector.shape[0]):
-        solved_vector[i] = (addition * round(((encrypted_message[i] - solved_vector[i]) % mod) / addition)) / addition
+    return solved_vector

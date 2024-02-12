@@ -4,10 +4,11 @@ import struct
 import numpy
 import numba
 
-from lwe.utils.rng import rng
-from lwe.utils.const import INT, MAX_CHR
+from ..utils.rng import rng
+from ..utils.const import INT, MAX_CHR
 
 from .. import Secret
+from .. import lwe
 
 
 class Public:
@@ -53,8 +54,6 @@ class Public:
         solve_public_matrix(public_matrix, secret_key.vector, errors)
         public_key = cls(secret_key.mod, public_matrix)
 
-        public_key.__compile(secret_key)
-
         return public_key
 
     def to_pickle_file(self):
@@ -67,28 +66,26 @@ class Public:
             return pickle.load(in_pkl)
 
     def encrypt(self, message):
-        num_of_matrices = rng.integers(2, self.max_encode_vectors, size=len(message))
-        vector_to_use = rng.integers(0, self.public_matrix.shape[0] - 1, size=len(message) * self.max_encode_vectors)
+        length = len(message)
+        num_of_matrices = rng.integers(2, self.max_encode_vectors + 1, size=length)
+        vector_to_use = rng.integers(0, self.public_matrix.shape[0], size=length * self.max_encode_vectors)
         encryption_matrix = create_encryption_matrix(
-            self.dimension, self.public_matrix, len(message), num_of_matrices, vector_to_use
+            self.dimension, self.public_matrix, length, num_of_matrices, vector_to_use
         )
-        message_vector = numpy.array([self.addition * ord(bit) for bit in message], dtype=INT)
 
-        encode_message(encryption_matrix, message_vector, self.mod)
+        message_vector = lwe.encode(message, self.addition, length)
+
+        encrypt_message(encryption_matrix, message_vector, self.mod)
 
         return struct.pack(
-                "!I" + f"{self.dimension * 4 * len(message)}s",
-                len(message),
-                encryption_matrix.tobytes()
-            )
+            "!I" + f"{self.dimension * 4 * length}s",
+            length,
+            encryption_matrix.tobytes()
+        )
 
     @staticmethod
     def _error_max(mod):
-        return round((mod // MAX_CHR) * 0.1)
-
-    def __compile(self, secret_key: Secret):
-        encrypted = self.encrypt("xyz")
-        secret_key.decrypt(encrypted)
+        return round((mod // MAX_CHR) * 0.05)
 
 
 @numba.jit(target_backend="cuda", nopython=True, parallel=True)
@@ -99,9 +96,9 @@ def solve_public_matrix(public_matrix: numpy.array, secret_key, errors: numpy.ar
 
 
 @numba.jit(target_backend="cuda", nopython=True, parallel=True)
-def encode_message(encoding_matrix, message_vector, mod):
+def encrypt_message(encrypt_matrix, message_vector, mod):
     for i in numba.prange(len(message_vector)):
-        encoding_matrix[i, -1] = (encoding_matrix[i, -1] + message_vector[i]) % mod
+        encrypt_matrix[i, -1] = (encrypt_matrix[i, -1] + message_vector[i]) % mod
 
 
 @numba.jit(target_backend="cuda", nopython=True, parallel=True)
