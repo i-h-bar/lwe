@@ -1,8 +1,10 @@
 import pickle
+import random
 import struct
 
 import numpy
 import numba
+from numba import types
 
 from ..utils.rng import rng
 from ..utils.const import INT, MAX_CHR
@@ -13,12 +15,12 @@ from .. import lwe
 
 class Public:
     def __init__(self, mod: int, public_matrix: numpy.array):
-        self.mod = mod
+        self.mod = types.int32(mod)
         self.public_matrix = public_matrix
-        self.dimension = self.public_matrix.shape[1]
-        self.addition = self.mod // MAX_CHR
+        self.dimension = types.int32(self.public_matrix.shape[1])
+        self.addition = types.int32(self.mod // MAX_CHR)
         self.error_max = self._error_max(self.mod)
-        self.max_encode_vectors = (self.addition // (self.error_max * 2))
+        self.max_encode_vectors = types.int32(self.addition // (self.error_max * 2))
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.mod}, Dim({self.dimension}))"
@@ -52,6 +54,7 @@ class Public:
         public_matrix = rng.integers(-65534, 65534, (dimension * 10, dimension + 1), dtype=INT)
         errors = rng.integers(-error_max, error_max, size=len(public_matrix), dtype=INT)
         solve_public_matrix(public_matrix, secret_key.vector, errors)
+        public_matrix.setflags(write=False)
         public_key = cls(secret_key.mod, public_matrix)
 
         return public_key
@@ -67,15 +70,11 @@ class Public:
 
     def encrypt(self, message):
         length = len(message)
-        num_of_matrices = rng.integers(2, self.max_encode_vectors + 1, size=length)
-        vector_to_use = rng.integers(0, self.public_matrix.shape[0], size=length * self.max_encode_vectors)
-        encryption_matrix = create_encryption_matrix(
-            self.dimension, self.public_matrix, length, num_of_matrices, vector_to_use
-        )
-
         message_vector = lwe.encode(message, self.addition, length)
 
-        encrypt_message(encryption_matrix, message_vector, self.mod)
+        encryption_matrix = encrypt_message(
+            message_vector, self.public_matrix, self.mod, self.max_encode_vectors, length, self.dimension
+        )
 
         return struct.pack(
             "!I" + f"{self.dimension * 4 * length}s",
@@ -85,35 +84,40 @@ class Public:
 
     @staticmethod
     def _error_max(mod):
-        return round((mod // MAX_CHR) * 0.05)
+        return round((mod // MAX_CHR) * 0.1)
 
 
-@numba.jit(target_backend="cuda", nopython=True, parallel=True)
+@numba.njit(
+    types.Array(types.int32, 2, "C")(
+        types.Array(types.int32, 1, "C"),
+        types.Array(types.int32, 2, "C", readonly=True),
+        types.int32,
+        types.int32,
+        types.int32,
+        types.int32,
+    ),
+    parallel=True, fastmath=True
+)
+def encrypt_message(message_vector, public_matrix, mod, max_vectors, message_len, dim):
+    encrypted_message = numpy.zeros((message_len, dim), dtype=INT)
+    for i in numba.prange(message_len):
+        for _ in numba.prange(random.randint(2, max_vectors)): # Find new random that works in njit func
+            encrypted_message[i] += public_matrix[random.randint(0, public_matrix.shape[0] - 1)]
+
+        encrypted_message[i, -1] = (encrypted_message[i, -1] + message_vector[i]) % mod
+
+    return encrypted_message
+
+
+@numba.njit(
+    types.void(
+        types.Array(types.int32, 2, "C"),
+        types.Array(types.int32, 1, "C", readonly=True),
+        types.Array(types.int32, 1, "C")
+    ),
+    parallel=True, fastmath=True
+)
 def solve_public_matrix(public_matrix: numpy.array, secret_key, errors: numpy.array):
     for i in numba.prange(len(public_matrix)):
         public_matrix[i, -1] = numpy.sum(public_matrix[i, :-1] * secret_key)
         public_matrix[i, -1] = public_matrix[i, -1] + errors[i]
-
-
-@numba.jit(target_backend="cuda", nopython=True, parallel=True)
-def encrypt_message(encrypt_matrix, message_vector, mod):
-    for i in numba.prange(len(message_vector)):
-        encrypt_matrix[i, -1] = (encrypt_matrix[i, -1] + message_vector[i]) % mod
-
-
-@numba.jit(target_backend="cuda", nopython=True, parallel=True)
-def add_encoding_vector(encoding_matrix, vector, index):
-    for x in numba.prange(vector.shape[0]):
-        encoding_matrix[index, x] = (encoding_matrix[index, x] + vector[x])
-
-
-@numba.jit(target_backend="cuda", nopython=True, parallel=True)
-def create_encryption_matrix(dimension, encoding_vectors, message_length, num_of_matrices, vector_to_use):
-    encoding_matrix = numpy.zeros((message_length, dimension), dtype=INT)
-    for i in numba.prange(message_length):
-        for x in numba.prange(num_of_matrices[i]):
-            add_encoding_vector(
-                encoding_matrix, encoding_vectors[vector_to_use[i * x]], i
-            )
-
-    return encoding_matrix

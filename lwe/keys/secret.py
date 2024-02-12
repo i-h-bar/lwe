@@ -15,6 +15,9 @@ class Secret:
         self.vector = vector
         self.addition = self.mod // MAX_CHR
 
+        if self.vector.flags.writeable:
+            self.vector.setflags(write=False)
+
     def __eq__(self, other):
         return (
                 isinstance(other, self.__class__) and
@@ -38,7 +41,6 @@ class Secret:
     @classmethod
     def generate(cls, dim: int = 10):
         secret = numpy.array([secrets.choice(range(-65534, 65534)) for _ in range(dim)], dtype=INT)
-        secret.setflags(write=False)
         return cls(secret, types.int32(secrets.choice(range(111206400, 1112064000))))
 
     def decrypt(self, secret):

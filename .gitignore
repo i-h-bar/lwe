@@ -170,3 +170,4 @@ cython_debug/
 
 main.py
 speed_testing.py
+test.txt
