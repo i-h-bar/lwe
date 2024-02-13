@@ -7,30 +7,34 @@ import numpy
 from .. import lwe
 
 from lwe.utils.const import INT, MAX_CHR
-from numba import types
+from numba import types, cuda
 
 
 class Secret:
     def __new__(cls, *args, **kwargs):
-        if kwargs.get("cuda"):
-            from ._gpu.secret import GPUSecret
-            kwargs.pop("cuda")
-            return GPUSecret(*args)
+        if kwargs.get("device") == "cuda":
+            if cuda.is_available():
+                from ._gpu.secret import CUDASecret
+                return CUDASecret(*args)
+            else:
+                raise cuda.CudaSupportError("cuda not available")
+
         else:
             return object.__new__(cls)
 
-    def __init__(self, vector: numpy.array, mod: int, cuda: bool = False):
+    def __init__(self, vector: numpy.array, mod: int, device: str = "cpu"):
         self.mod = mod
         self.vector = vector
         self.addition = self.mod // MAX_CHR
         self.dimension = types.int32(len(self.vector))
+        self.device = device
 
         if self.vector.flags.writeable:
             self.vector.setflags(write=False)
 
     def __eq__(self, other):
         return (
-                isinstance(other, self.__class__) and
+                (isinstance(other, self.__class__) or issubclass(other.__class__, Secret)) and
                 self.mod == other.mod and
                 numpy.array_equal(self.vector, other.vector)
         )
@@ -43,15 +47,15 @@ class Secret:
         )
 
     @classmethod
-    def from_bytes(cls, b: bytes):
+    def from_bytes(cls, b: bytes, device: str = "cpu"):
         mod = struct.unpack("!Q", b[:8])[0]
         vector = numpy.frombuffer(b[8:], dtype=INT)
-        return cls(vector, mod)
+        return cls(vector, mod, device=device)
 
     @classmethod
-    def generate(cls, dim: int = 10, cuda: bool = False):
+    def generate(cls, dim: int = 10, device: str = "cpu"):
         secret = numpy.array([secrets.choice(range(-65534, 65534)) for _ in range(dim)], dtype=INT)
-        return cls(secret, types.int32(secrets.choice(range(111206400, 1112064000))), cuda=cuda)
+        return cls(secret, types.int32(secrets.choice(range(111206400, 1112064000))), device=device)
 
     def decrypt(self, secret):
         message_length = struct.unpack("!I", secret[:4])[0]

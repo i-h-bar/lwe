@@ -1,4 +1,3 @@
-import math
 import struct
 
 import cupy
@@ -6,12 +5,13 @@ import numpy
 from numba import cuda, types
 
 from lwe.utils.const import INT
-from ... import lwe, Secret
+from ..secret import Secret
+from ... import lwe
 
 
-class GPUSecret(Secret):
-    def __init__(self, vector: numpy.array, mod, **kwargs):
-        super().__init__(vector, mod)
+class CUDASecret(Secret):
+    def __init__(self, vector: numpy.array, mod, **_):
+        super().__init__(vector, mod, "cuda")
         self.gpu_vector = cuda.to_device(self.vector)
         self.stream = cuda.stream()
 
@@ -20,9 +20,10 @@ class GPUSecret(Secret):
         message = cupy.frombuffer(secret[4:], dtype=INT).reshape((message_length, self.dimension + 1))
         solved_vector = cupy.zeros(message_length, dtype=INT)
 
-        threads = math.ceil(math.sqrt(message_length))
+        threads = round((message_length*self.dimension)**0.66)
+        blocks = round((message_length*self.dimension) / threads)
 
-        gpu_solve[threads, threads](message, self.gpu_vector, solved_vector, self.addition, self.mod)
+        gpu_solve[threads, blocks](message, self.gpu_vector, solved_vector, self.addition, self.mod)
 
         solved_vector = cupy.asnumpy(solved_vector)
         return lwe.decode(solved_vector, solved_vector.max())
