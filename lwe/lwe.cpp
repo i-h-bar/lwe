@@ -20,7 +20,7 @@ std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
 
 
 
-std::string _decode(py::array_t<int, 32> array) {
+std::string _decode(const py::array_t<int, 32> &array) {
     std::string return_value;
     auto array_proxy = array.unchecked<1>();
     int size = array_proxy.size();
@@ -33,7 +33,7 @@ std::string _decode(py::array_t<int, 32> array) {
 }
 
 
-std::string _decode_utf8(py::array_t<int, 32> array) {
+std::string _decode_utf8(const py::array_t<int, 32> &array) {
     std::string return_value;
     auto array_proxy = array.unchecked<1>();
     int size = array_proxy.size();
@@ -62,7 +62,7 @@ py::array_t<int, 32> encode(const std::u32string &message, int addition, int len
 }
 
 
-std::string decode(py::array_t<int, 32> array, int max_value) {
+std::string decode(const py::array_t<int, 32> &array, int max_value) {
     if (max_value < 128) {
         return _decode(array);
     }
