@@ -13,11 +13,7 @@
 namespace py = pybind11;
 
 typedef std::vector<std::vector<long long>> matrix;
-
-std::random_device rd;
 std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-
-
 
 
 std::string _decode(const py::array_t<int, 32> &array) {
