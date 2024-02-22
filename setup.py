@@ -1,8 +1,7 @@
 import shutil
 import sys
-from distutils.core import setup
-from distutils.extension import Extension
 import pybind11
+from setuptools import setup, Extension
 
 shutil.rmtree("build", ignore_errors=True)
 shutil.rmtree("lwe.egg-info", ignore_errors=True)

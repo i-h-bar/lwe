@@ -1,3 +1,5 @@
 numpy~=1.26
 numba~=0.59
 cupy~=13.0
+pybind11~=2.11
+setuptools~=69.1
