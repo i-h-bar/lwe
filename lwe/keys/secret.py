@@ -59,27 +59,29 @@ class Secret:
 
     def decrypt(self, secret):
         message_length = struct.unpack("!I", secret[:4])[0]
-        message = numpy.frombuffer(secret[4:], dtype=INT).reshape((message_length, len(self.vector) + 1))
-        solved_vector = solve(message, self.vector, self.addition, self.mod)
+        message = numpy.frombuffer(secret[4:], dtype=INT)
+        solved_vector = solve(message, self.vector, self.addition, self.mod, message_length, len(self.vector) + 1)
 
         return lwe.decode(solved_vector, solved_vector.max())
 
 
 @numba.njit(
     types.Array(types.int32, 1, "C")(
-        types.Array(types.int32, 2, "C", readonly=True),
         types.Array(types.int32, 1, "C", readonly=True),
+        types.Array(types.int32, 1, "C", readonly=True),
+        types.int32,
+        types.int32,
         types.int32,
         types.int32
     ),
     parallel=True, fastmath=True
 )
-def solve(message, secret_key, addition, mod):
-    solved_vector = numpy.zeros(message.shape[0], dtype=INT)
-    for i in numba.prange(message.shape[0]):
-        for x in numba.prange(message.shape[1] - 1):
-            solved_vector[i] += message[i, x] * secret_key[x]
+def solve(message, secret_key, addition, mod, message_length, dim):
+    solved_vector = numpy.zeros(message_length, dtype=INT)
+    for i in numba.prange(message_length):
+        for x in numba.prange(dim - 1):
+            solved_vector[i] += message[i * dim + x] * secret_key[x]
 
-        solved_vector[i] = (addition * round(((message[i, -1] - solved_vector[i]) % mod) / addition)) / addition
+        solved_vector[i] = round(((message[i * dim + dim - 1] - solved_vector[i]) % mod) / addition)
 
     return solved_vector

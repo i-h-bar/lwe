@@ -25,13 +25,15 @@ class Public:
         else:
             return object.__new__(cls)
 
-    def __init__(self, mod: int, public_matrix: numpy.array, device: str = "cpu"):
+    def __init__(self, mod: int, public_matrix: numpy.array, dims: tuple[int, int], device: str = "cpu"):
         self.mod = types.int32(mod)
         self.public_matrix = public_matrix
-        self.dimension = types.int32(self.public_matrix.shape[1])
+        self.dims = dims
+        self.dimension = dims[1]
         self.addition = types.int32(self.mod // MAX_CHR)
         self.error_max = self._error_max(self.mod)
         self.max_encode_vectors = types.int32(self.addition // (self.error_max * 2))
+
         self.device = device
 
     def __repr__(self):
@@ -46,28 +48,29 @@ class Public:
 
     def __bytes__(self):
         return struct.pack(
-            '!QII' + f"{self.dimension * 4 * len(self.public_matrix)}s",
+            '!QII' + f"{self.dimension * 4 * self.dims[0]}s",
             self.mod,
-            len(self.public_matrix),
-            self.dimension,
+            self.dims[0],
+            self.dims[1],
             self.public_matrix.tobytes()
         )
 
     @classmethod
     def from_bytes(cls, b: bytes, device: str = "cpu"):
         mod, size, dim = struct.unpack("!QII", b[:16])
-        public_matrix = numpy.frombuffer(b[16:], dtype=INT).reshape((size, dim))
-        return cls(mod, public_matrix, device=device)
+        public_matrix = numpy.frombuffer(b[16:], dtype=INT)
+        return cls(mod, public_matrix, (size, dim), device=device)
 
     @classmethod
     def create(cls, secret_key: Secret, device: str = "cpu"):
         dimension = len(secret_key.vector)
+        dims = (dimension * 10, dimension + 1)
         error_max = cls._error_max(secret_key.mod)
-        public_matrix = rng.integers(-65534, 65534, (dimension * 10, dimension + 1), dtype=INT)
-        errors = rng.integers(-error_max, error_max, size=len(public_matrix), dtype=INT)
-        solve_public_matrix(public_matrix, secret_key.vector, errors)
+        public_matrix = rng.integers(-65534, 65534, dims[0] * dims[1], dtype=INT)
+        errors = rng.integers(-error_max, error_max, size=dims[0], dtype=INT)
+        solve_public_matrix(public_matrix, secret_key.vector, errors, dims[0], dims[1])
         public_matrix.setflags(write=False)
-        public_key = cls(secret_key.mod, public_matrix, device=device)
+        public_key = cls(secret_key.mod, public_matrix, dims, device=device)
 
         return public_key
 
@@ -85,7 +88,7 @@ class Public:
         message_vector = lwe.encode(message, self.addition, length)
 
         encryption_matrix = encrypt_message(
-            message_vector, self.public_matrix, self.mod, self.max_encode_vectors, length, self.dimension
+            message_vector, self.public_matrix, self.mod, self.max_encode_vectors, length, self.dimension, self.dims[0], self.dims[1]
         )
 
         return struct.pack(
@@ -100,36 +103,44 @@ class Public:
 
 
 @numba.njit(
-    types.Array(types.int32, 2, "C")(
+    types.Array(types.int32, 1, "C")(
         types.Array(types.int32, 1, "C"),
-        types.Array(types.int32, 2, "C", readonly=True),
+        types.Array(types.int32, 1, "C", readonly=True),
         types.int32,
         types.int32,
         types.int32,
         types.int32,
+        types.int32,
+        types.int32
     ),
     parallel=True, fastmath=True
 )
-def encrypt_message(message_vector, public_matrix, mod, max_vectors, message_len, dim):
-    encrypted_message = numpy.zeros((message_len, dim), dtype=INT)
+def encrypt_message(message_vector, public_matrix, mod, max_vectors, message_len, dim, pub_x, pub_y):
+    encrypted_message = numpy.zeros(message_len * dim, dtype=INT)
+    end = dim - 1
     for i in numba.prange(message_len):
+        start = i * dim
         for _ in numba.prange(random.randint(2, max_vectors)):  # Find new random that works in njit func
-            encrypted_message[i] += public_matrix[random.randint(0, public_matrix.shape[0] - 1)]
+            x = random.randint(0, pub_x - 1)
+            pub_start = x * pub_y
+            encrypted_message[start: start + dim] += public_matrix[pub_start: pub_start + pub_y]
 
-        encrypted_message[i, -1] = (encrypted_message[i, -1] + message_vector[i]) % mod
+        encrypted_message[start + end] = (encrypted_message[start + end] + message_vector[i]) % mod
 
     return encrypted_message
 
 
 @numba.njit(
     types.void(
-        types.Array(types.int32, 2, "C"),
+        types.Array(types.int32, 1, "C"),
         types.Array(types.int32, 1, "C", readonly=True),
-        types.Array(types.int32, 1, "C")
+        types.Array(types.int32, 1, "C"),
+        types.int32,
+        types.int32
     ),
     parallel=True, fastmath=True
 )
-def solve_public_matrix(public_matrix: numpy.array, secret_key, errors: numpy.array):
-    for i in numba.prange(len(public_matrix)):
-        public_matrix[i, -1] = numpy.sum(public_matrix[i, :-1] * secret_key)
-        public_matrix[i, -1] = public_matrix[i, -1] + errors[i]
+def solve_public_matrix(public_matrix: numpy.array, secret_key, errors: numpy.array, x, y):
+    for i in numba.prange(x):
+        public_matrix[i * y + y - 1] = numpy.sum(public_matrix[i * y: i * y + y - 1] * secret_key)
+        public_matrix[i * y + y - 1] = public_matrix[i * y + y - 1] + errors[i]

@@ -6,7 +6,8 @@ from lwe.keys._gpu.secret import CUDASecret
 secret = Secret.generate()
 public = Public.create(secret)
 gpu_secret = CUDASecret(secret.vector, secret.mod)
-gpu_public = CUDAPublic(public.mod, public.public_matrix)
+gpu_public = CUDAPublic(public.mod, public.public_matrix, public.dims)
+
 
 def test_encryption():
     message = "Hello World"
