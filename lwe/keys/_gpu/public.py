@@ -11,8 +11,8 @@ from ...utils.rng import rng
 
 
 class CUDAPublic(Public):
-    def __init__(self, mod: int, public_matrix: numpy.array, dims: tuple[int, int], **_):
-        super().__init__(mod, public_matrix, dims, device="cuda")
+    def __init__(self, mod: int, public_matrix: numpy.array, dimension: tuple[int, int], **_):
+        super().__init__(mod, public_matrix, dimension, device="cuda")
         self.gpu_public = cuda.to_device(public_matrix)
 
     def encrypt(self, message: str):
@@ -20,21 +20,21 @@ class CUDAPublic(Public):
         message_vector = lwe.encode(message, self.addition, message_length)
         message_vector = cuda.to_device(message_vector)
 
-        encryption_matrix = cupy.zeros((message_length, self.dimension), dtype=INT)
+        encryption_matrix = cupy.zeros((message_length, self.dimension[1]), dtype=INT)
 
-        threads = round((message_length * self.dimension) ** 0.66)
-        blocks = round((message_length * self.dimension) / threads)
+        threads = round((message_length * self.dimension[1]) ** 0.66)
+        blocks = round((message_length * self.dimension[1]) / threads)
         vector_to_use = rng.integers(0, self.public_matrix.shape[0], message_length * 3)
         vector_to_use = cuda.to_device(vector_to_use)
 
         encrypt[threads, blocks](
-            encryption_matrix, message_vector, self.gpu_public, 3, self.mod, vector_to_use, self.dims[1]
+            encryption_matrix, message_vector, self.gpu_public, 3, self.mod, vector_to_use, self.dimension[1]
         )
 
         encryption_matrix = cupy.asnumpy(encryption_matrix)
 
         return struct.pack(
-            "!I" + f"{self.dimension * 4 * message_length}s",
+            "!I" + f"{self.dimension[1] * 4 * message_length}s",
             message_length,
             encryption_matrix.tobytes()
         )

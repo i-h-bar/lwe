@@ -31,5 +31,5 @@ def test_gpu_pub_create_classmethod():
 
 
 def test_gpu_pub_init():
-    pub = Public(public.mod, public.public_matrix, public.dims, device="cuda")
+    pub = Public(public.mod, public.public_matrix, public.dimension, device="cuda")
     assert isinstance(pub, CUDAPublic), "Did not create CUDAPublic object"
